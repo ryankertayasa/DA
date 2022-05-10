@@ -1,0 +1,140 @@
+import numpy as np # linear algebra
+import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
+import os
+for dirname, _, filenames in os.walk('Notebooks/datasethouseprice'):
+    for filename in filenames:
+        print(os.path.join(dirname, filename))
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+color = sns.color_palette()
+sns.set_style('darkgrid')
+import warnings
+def ignore_warn(*args, **kwargs):
+    pass
+warnings.warn = ignore_warn
+from scipy import stats
+from scipy.stats import norm, skew 
+
+pd.set_option('display.float_format', lambda x: '{:.3f}'.format(x))
+
+train = pd.read_csv('/content/train.csv')
+test = pd.read_csv('/content/test.csv')
+print(train.shape, test.shape)
+display(train.head())
+display(test.head())
+train = train.drop(['Id'], axis=1)
+test = test.drop(['Id'], axis=1)
+print(train.shape, test.shape)
+
+fig, ax = plt.subplots()
+ax.scatter(x=train['GrLivArea'], y=train['SalePrice'])
+plt.ylabel('SalePrice', fontsize=13)
+plt.xlabel('GrLivArea', fontsize=13)
+plt.show()
+
+train = train.drop(train[(train['GrLivArea']>4000) & (train['SalePrice']<300000)].index)
+fig, ax = plt.subplots()
+ax.scatter(x=train['GrLivArea'], y=train['SalePrice'])
+plt.ylabel('SalePrice', fontsize=13)
+plt.xlabel('GrLivArea', fontsize=13)
+plt.show()
+
+
+# Get the fitted parameters used by the function
+(mu, sigma) = norm.fit(train['SalePrice'])
+print( '\n mu = {:.2f} and sigma = {:.2f}\n'.format(mu, sigma))
+
+#Now plot the distribution
+plt.legend(['Normal dist. ($\mu=$ {:.2f} and $\sigma=$ {:.2f} )'.format(mu, sigma)],
+            loc='best')
+plt.ylabel('Frequency')
+plt.title('SalePrice distribution')
+
+#Get also the QQ-plot
+fig = plt.figure()
+res = stats.probplot(train['SalePrice'], plot=plt)
+plt.show()
+
+# log - transformation of the garget variable
+train['SalePrice'] = np.log1p(train['SalePrice'])
+#Check the new distribution 
+sns.distplot(train['SalePrice'] , fit=norm);
+# Get the fitted parameters used by the function
+(mu, sigma) = norm.fit(train['SalePrice'])
+print( '\n mu = {:.2f} and sigma = {:.2f}\n'.format(mu, sigma))
+#Now plot the distribution
+plt.legend(['Normal dist. ($\mu=$ {:.2f} and $\sigma=$ {:.2f} )'.format(mu, sigma)],
+            loc='best')
+plt.ylabel('Frequency')
+plt.title('SalePrice distribution')
+#Get also the QQ-plot
+fig = plt.figure()
+res = stats.probplot(train['SalePrice'], plot=plt)
+plt.show()
+# 1-2. Data merging 
+all_data = pd.concat((train,test)).reset_index(drop=True)
+all_data = all_data.drop(['SalePrice'],axis=1)
+print(all_data.shape)
+all_data
+# 1-3. Missing data 
+all_data_na = (all_data.isnull().sum() / len(all_data) * 100).sort_values(ascending=False)[:25]
+all_data_na
+# 1-3-2.
+f, ax = plt.subplots(figsize=(15, 12))
+plt.xticks(rotation='90')
+sns.barplot(x=all_data_na.index, y=all_data_na)
+plt.xlabel('Features', fontsize=15)
+plt.ylabel('Percent of missing values', fontsize=15)
+plt.title('Percent missing data by feature', fontsize=15)
+# 1-4. Correlation map to see how features are correlated with SalePrice
+corrmat = train.corr()
+plt.subplots(figsize=(12,9))
+sns.heatmap(corrmat, vmax=0.9, square=True)
+all_data['PoolQC'].value_counts()
+all_data['MiscFeature'].value_counts()
+all_data['Alley'].value_counts()
+all_data['Fence'].value_counts()
+all_data['FireplaceQu'].value_counts()
+# 1-5.
+# all_data.info() 
+all_data['PoolQC'] = all_data['PoolQC'].fillna('None') 
+all_data['MiscFeature'] = all_data['MiscFeature'].fillna('None') 
+all_data['Alley'] = all_data['Alley'].fillna('None') 
+all_data['Fence'] = all_data['Fence'].fillna('None') 
+all_data['FireplaceQu'] = all_data['FireplaceQu'].fillna('None') 
+all_data['LotFrontage'].value_counts()
+all_data['LotFrontage'] = all_data['LotFrontage'].fillna(all_data['LotFrontage'].median()) 
+
+for col in ['MSZoning', 'KitchenQual', 'Exterior1st', 'Exterior2nd', 'SaleType']:
+    all_data[col] = all_data[col].fillna(all_data[col].mode()[0]) 
+cat_col = list(all_data.dtypes[all_data.dtypes == 'object'].index) 
+for col in cat_col:
+    all_data[col] = all_data[col].fillna('None')
+num_col = list(all_data.dtypes[(all_data.dtypes == 'int64') | (all_data.dtypes == 'float64')].index) 
+for col in num_col:
+    all_data[col] = all_data[col].fillna(0)
+# data (sweetviz)
+!pip install sweetviz
+import sweetviz as sv
+report = sv.analyze(all_data)
+# save report as *.html and open it on browser (would not work on colab.)
+# report.show_html(filepath='sv_output_analyze.html')
+# show report on notebook
+report.show_notebook()
+all_data.info()
+(all_data.isnull().sum() / len(all_data) * 100).sort_values(ascending=False)[:5] 
+all_data['MSSubClass'].value_counts()
+
+all_data['MSSubClass'] = all_data['MSSubClass'].apply(str)
+# 1-6 Label encoding 
+from sklearn.preprocessing import LabelEncoder
+lbl = LabelEncoder()
+cat_col = list(all_data.dtypes[all_data.dtypes == 'object'].index) 
+for col in cat_col:
+    all_data[col] = lbl.fit_transform(list(all_data[col].values))
+all_data.info()
+# Adding total sqfootage feature 
+all_data['TotalSF'] = all_data['TotalBsmtSF'] + all_data['1stFlrSF'] + all_data['2ndFlrSF']
